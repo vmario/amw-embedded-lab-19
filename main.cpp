@@ -1,29 +1,23 @@
-#include "adc.hpp"
-#include "keypad.hpp"
 #include "lcdDisplay.hpp"
 #include "menu.hpp"
-#include "thermostat.hpp"
-
-#include <util/atomic.h>
+#include "accelerometer.hpp"
 
 #include <stdio.h>
 
 /**
- * Obsługuje wyświetlacz i logikę termostatu.
+ * Obsługuje wyświetlacz i pomiar położenia.
  */
 void mainLoop()
 {
 	char buf[DISPLAY_LENGTH + 1];
+	int16_t value{accelerometer.measure()};
 
-	double temperature;
+	lcdDisplay.goTo(1, 3);
+	snprintf(buf, sizeof(buf), "0x%04x=%6d", value, value);
+	lcdDisplay.write(buf);
 
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-		keypad.measure(keyboardAdc);
-		temperature = 1.1 * temperatureAdc / 1024 * 100;
-	}
-
-	lcdDisplay.goTo(0, 0);
-	lcdDisplay.write("test");
+	lcdDisplay.goTo(0, 7);
+	lcdDisplay.write("||");
 }
 
 /**
@@ -31,46 +25,16 @@ void mainLoop()
  */
 int main()
 {
-	constexpr uint8_t DEGREE[] = {
-		0b00000010,
-		0b00000101,
-		0b00000010,
-		0b00000000,
-		0b00000000,
-		0b00000000,
-		0b00000000,
-		0b00000000,
-	};
-
-	constexpr uint8_t NEGATIVE_ARROW[] = {
-		0b00011111,
-		0b00011011,
-		0b00011101,
-		0b00000000,
-		0b00011101,
-		0b00011011,
-		0b00011111,
-		0b00000000,
-	};
-
-	constexpr uint8_t ELLIPSIS[] = {
-		0b00000000,
-		0b00000000,
-		0b00000000,
-		0b00000000,
-		0b00000000,
-		0b00000000,
-		0b00010101,
-		0b00000000,
-	};
-
 	lcdDisplay.initialize();
-	lcdDisplay.addSymbol(DEGREE, DISPLAY_CODE_DEGREE);
-	lcdDisplay.addSymbol(NEGATIVE_ARROW, DISPLAY_CODE_NEGATIVE_ARROW);
-	lcdDisplay.addSymbol(ELLIPSIS, DISPLAY_CODE_ELLIPSIS);
+	menu.initialize();
+	accelerometer.initialize();
 
-	adc.initialize();
-	sei();
+	uint8_t value{accelerometer.whoAmI()};
+
+	lcdDisplay.goTo(1, 0);
+	char buf[DISPLAY_LENGTH + 1];
+	snprintf(buf, sizeof(buf), "%02x", value);
+	lcdDisplay.write(buf);
 
 	while (true) {
 		mainLoop();
