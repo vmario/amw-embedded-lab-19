@@ -1,5 +1,5 @@
 ---
-title: "Ćwiczenie 17: Przechowywanie danych użytkownika w pamięci EEPROM"
+title: "Ćwiczenie 19: Magistrala SPI na przykładzie akcelerometru"
 subtitle: "Instrukcja laboratorium"
 footer-left: "Instrukcja laboratorium"
 author: [Mariusz Chilmon <<mariusz.chilmon@ctm.gdynia.pl>>]
@@ -32,121 +32,127 @@ header-includes: |
     font=\footnotesize,
 }
 
-> Programming is learned by writing programs.
+> I'm not a great programmer; I'm just a good programmer with great habits.
 >
-> — _Brian Kernighan_
+> — _Kent Beck_
 
 # Cel ćwiczenia
 
 Celem ćwiczenia jest zapoznanie się z:
 
-* obsługą pamięci EEPROM za pomocą biblioteki \texttt{libc},
-* obsługą pamięci EEPROM za pomocą bezpośrednich operacji na rejestrach.
+* działaniem magistrali SPI,
+* odczytem danych z akcelerometru.
 
 # Uruchomienie programu wyjściowego
 
 1. Podłącz płytkę _LCD Keypad Shield_ do _Arduino Uno_.
-1. Podłącz termometr LM35DZ do linii _A5_.
-1. W pierwszej linii wyświetlacza widoczne są dwie nastawy: _T_ — temperatura zadana $T_t$ i _H_ — histereza $T_h$.
-1. Nastawy można zmieniać za pomocą przycisków _UP_ i _DOWN_, wybierając je wcześniej przyciskiem _SELECT_.
-1. W drugiej linii wyświetlacza widoczna jest bieżąca temperatura i stan grzałki.
+1. Podłącz akcelerometr.
+1. Na wyświetlaczu wyświetlane są zerowe wartości parametrów.
 
-Program wyjściowy symuluje termostat, który włącza grzałkę po obniżeniu temperatury poniżej $T_t - T_h$ i wyłącza po  prekroczeniu $T_t + T_h$.
-
-![Histereza w termostacie sterującym grzałką](hysteresis.svg){width=400px}
-
-Zadaniem histerezy jest zmniejszenie częstotliwości przełączania elementu wykonawczego, kosztem zmniejszenia precyzji regulowanego parametru.
-
-W naszym przypadku, gdy mierzona temperatura oscyluje wokół temperatury zadanej $T_t$ np. z powodu ruchu powietrza w pomieszczeniu albo szumu pomiarowego, może dojść do sytuacji, gdy element wykonywaczy byłby przełączany w bardzo krótkich odcinkach czasu. Jest to zjawisko, które może być szkodliwe dla elementu sterującego (np. w przekaźniku może dojść do wypalenia styków), jak i dla elementu wykonawczego (np. kompresor w lodówce może ulec szybkiemu zużyciu).
-
-Histereza zazwyczaj jest jednym z parametrów, które są dostępne dla użytkownika jako nastawa, co pozwala mu ustalić kompromis między precyzją sterowania a częstotliwością przełączania.
-
-\DefineLCDchar{degree}{00010001010001000000000000000000000}
 \begin{center}
 \LCD{2}{16}
-    |T:25.0{degree}C H:1.0{degree}C|
-    |  24.0{degree}C [HEAT] |
-\captionof{figure}{Przykładowy stan wyświetlacza}
+    |       {|}{|}       |
+    |00 0x0000=     0|
+\captionof{figure}{Wyjściowy stan wyświetlacza}
 \end{center}
+
+Do płytki podłączony jest układ scalony MPU-6500 firmy InvenSense (obecnie wchodzącej w skład TDK), który jest czujnikiem typu MEMS (_Microelectromechanical System_), integrujący obwody elektroniczne z&nbsp;czujnikami mechanicznymi: trzyosiowym akcelerometrem i trzyosiowym żyroskopem. Umożliwia on pomiar przyspieszenia (akcelerometr) oraz prędkości obrotowej (żyroskop) w trzech ortogonalnych osiach.
+
+![Orientacja osi w czujniku MPU-6500](axes.png){width=200px}
+
+![Budowa wewnętrzna podobnego czujnika — MPU-6050. Obok struktur elektronicznych widoczne są elementy mechaniczne, dokonujące pomiaru](dies.jpg){width=500px}
+
+\awesomebox[purple]{2pt}{\faMicrochip}{purple}{Akcelerometry znajdują bardzo szerokie zastosowanie: oceniają przechył telefonu komórkowego (stąd zjawisko ,,znowu mnie obróciło''), stabilizują obraz w aparatach fotograficznych, zliczają kroki w smartwatchu, uruchamiają poduszki powietrzne w~samochodzie czy mierzą przeciążenia mózgu graczy NHL po uderzeniu krążkiem hokejowym (do tego zastosowania firma STM musiała poszerzyć zakres pomiarowy swoich czujników).}
+
+Dzięki zasadzie równoważności, która mówi, że jednorodone statyczne pole grawitacyjne jest dla obserwatora nieodróżnialne od ruchu z przyspieszeniem (_vide_ pojęcie przyspieszenia ziemskiego), akcelerometr nadaje się również do pomiaru siły pola grawitacyjnego. Z kolei siła grawitacji w&nbsp;określonej osi jest zależna od nachylenia tej osi do np. powierzchni Ziemi, co łatwo możemy zaobserwować przechylając stół — przy pewnym kącie nachylenia składowa siły grawitacji dociskająca przedmioty do powierzchni stołu staje się zbyt mała do ich utrzymania[^1].
+
+[^1]: Jest to zagadnienie powszechnie wykorzystywane do dręczenia uczniów i studentów, gdyż jest praktycznym przykładem użycia trygonometrii.
+
+Wobec powyższego akcelerometr zmienia wskazania w zakresie $\pm 1\ g$ w zależności od nachylenia danej osi do powierzchni Ziemi.
 
 # Zadanie podstawowe
 
-Celem zadania podstawowego jest zapisywanie nastaw urządzenia w pamięci nieulotnej EEPROM.
+Czujnik MPU-6500 może komunikować się z mikrokontrolerem za pomocą magistrali I²C lub SPI. Ze względu na dostępne wyprowadzenia mikrokontrolera użyto interfejsu SPI.
+
+Celem zadania podstawowego jest skonfigurowanie SPI i odczytanie z czujnika numeru identyfikacyjnego.
 
 ## Wymagania funkcjonalne
 
-1. Po wyjściu z edycji nastaw ustawione wartości zapisywane są w pamięci EEPROM mikrokontrolera.
-1. Po zresetowaniu mikrokontrolera wczytywana jest zapamiętana temperatura.
-1. Urządzenie wykrywa niezainicjalizowaną pamięć i używa wówczas domyślnych nastaw.
+1. Na wyświetlaczu widoczny jest identyfikator czujnika.
 
 ## Modyfikacja programu
 
-### Zapis nastaw
+### Konfiguracja interfejsu SPI
 
-Uzupełnij metodę `Thermostat::save()` tak, by zapisywała obie nastawy w pamięci EEPROM pod adresami `EEPROM_ADDRESS_TARGET` i `EEPROM_ADDRESS_HYSTERESIS`.
+Interfejs SPI (_Serial Peripheral Interface_) jest prostym interfejsem, w którym na jednym zboczu zegara kontroler magistrali (_master_) i układ peryferyjny (_slave_) wystawiają dane, a na przeciwnym — odczytują je. Transmisja zawsze jest możliwa w obie strony, choć nie zawsze oba urządzenia rzeczywiście wystawiają dane (jeżeli nie — odbiorca ignoruje przychodzące bity).
 
-### Odczyt nastaw
+Transmisja z kontrolera do układu peryferyjnego zachodzi na linii _MOSI_ (_Master Out, Slave In_) zaś w&nbsp;drugą stronę — na linii MISO (_Master In, Slave Out_). Kontroler magistrali odpowiada za generowanie sygnału zegarowego. Steruje również liniami _CS_ (_Chip Select_). Każdy układ peryferyjny ma swoją linię _CS_, na której stan aktywny (logiczne 0) oznacza, że dane urządzenie zostało przez kontroler wybrane do komunikacji (pozostałe linie są współdzielone). Nawet jeżeli komunikujemy się tylko z jednym urządzeniem peryferyjnym, wskazane jest sterowanie linią _CS_, gdyż łatwo wtedy wskazać początek i&nbsp;koniec transmisji.
 
-Uzupełnij metodę `Thermostat::restore()` tak, by odczytywała obie nastawy w pamięci EEPROM pod adresami `EEPROM_ADDRESS_TARGET` i `EEPROM_ADDRESS_HYSTERESIS`. Odczyt odbywa się automatycznie przy inicjalizacji urządzenia.
+Mimo zasadniczej prostoty interfejs SPI ma wiele trybów pracy, różniących się:
 
-### Rozpoznanie niezainicjalizowanej pamięci
+* polaryzacją zegara (stanem zegara w stanie uśpienia),
+* fazą zegara (zboczem, na którym są odczytywane dane),
+* kolejnością bitów w bajcie,
+* szybkością zegara.
 
-Po wciśnięciu przycisku _RIGHT_ uruchamiana jest procedura czyszczenia pamięci EEPROM, tj.&nbsp;wypełniania jej wartościami \lstinline{0xFF}, które prowadzą do interpretacji wartości zadanej temperatury i&nbsp;histerezy jako _nie-liczb_.
+W celu skonfigurowania interfejsu uzupełnij metodę `SPI::initialize()` o ustawienie odpowiednich bitów w rejestrze `SPCR`. Ustaw bity `SPE` (_SPI Enable_) oraz `MSTR` (_Master/Slave Select_), aby włączyć SPI w trybie _master_, a pozostałe bity ustaw zgodnie ze sprawozdaniem z ćwiczenia.
 
-\begin{center}
-\LCD{2}{16}
-    |T: nan{degree}C H:nan{degree}C|
-    |  24.0{degree}C [----] |
-\captionof{figure}{Odczyt niezainicjalizowanej pamięci}
-\end{center}
+### Implementacja transferu bajtu przez SPI
 
-\awesomebox[purple]{2pt}{\faMicrochip}{purple}{Wyczyszczona pamięć EEPROM nie jest wypełniona bajtami \lstinline{0x00}, ale \lstinline{0xFF}. Jest to częsta cecha pamięci nieulotnych.}
+Uzupełnij metodę `Spi::transfer()` o następujące kroki:
 
-\awesomebox[teal]{2pt}{\faCode}{teal}{Liczba zmiennoprzecinkowa, w której wszystkie bity wykładnika są ustawione (co ma miejsce w wyczyszczonej pamięci EEPROM), nie jest poprawną wartością, ale \textit{nie-liczbą} (ang. \textit{NaN} — \textit{Not a Number}).}
+1. Wpisanie wysyłanego bajtu do rejestru `SPDR`.
+1. Oczekiwanie na ustawienie flagi `SPIF`, świadczącej o zakończeniu transferu.
+1. Zwrócenie odebranego bajtu z rejestru `SPDR`.
 
-Wartość `NaN` można wykryć za pomocą makra \lstinline{isnan()} zdefiniowanego w bibliotece \lstinline{math.h}. Po wykryciu takiej wartości należy użyć wartości domyślnych dla nastaw: `TARGET_DEFAULT` i&nbsp;`HYSTERESIS_DEFAULT`.
+Ustawienie flagi można sprawdzać w pustej pętli:
+
+```
+while (bit_is_clear(SPSR, SPIF)) ;
+```
+
+### Implementacja odczytu rejestru
+
+Uzupełnij metodę `Spi::readRegister()` o następujące kroki:
+
+1. Ustawienie linii _CS_ za pomocą `gpio.chipSelect(true)`, co ustawia odpowiedni pin w stan niski (aktywny).
+1. Wysłanie bajtu z adresem za pomocą wcześniej uzupełnionej metody `Spi::transfer()`. Wysyłany bajt musi mieć dodatkowo ustawiony najstarszy bit, co oznacza operację odczytu.
+1. Zapamiętanie w zmiennej bajtu zwróconego przez drugie wywołanie metody `Spi::transfer()`.
+1. Zwolnienie linii _CS_ za pomocą `gpio.chipSelect(false)`, co ustawia odpowiedni pin w&nbsp;stan wysoki (nieaktywny).
+1. Zwrócenie odebranego bajtu.
+
+### Odczytanie wartości rejestru _Who Am I_
+
+W metodzie `Accelerometer::whoAmI()` wywołaj metodę `Spi::readRegister()` jako argument podając adres rejestru _Who Am I_. Na początku drugiej linii wyświetlacza powinien być widoczny identyfikator czujnika.
 
 # Zadanie rozszerzone
 
-Celem zadania rozszerzonego jest samodzielna implementacja funkcji odczytującej i zapisującej wartość w pamięci EEPROM.
-
 ## Wymagania funkcjonalne
 
-1. Funkcjonowanie urządenia nie zmienia się.
+1. Odczytywany jest pomiar w osi X.
+1. Wychylenie czujnika jest sygnalizowane przez linie w pierwszej linii wyświetlacza.
 
 ## Modyfikacja programu
 
-### Implementacja odczytu wartości `float` z EEPROM
+### Odczyt podwójnego rejestru
 
-Napisz własną funkcję odczytującą zmienną typu `float` z EEPROM (oczywiście, możesz posłużyć się inną nazwą):
+Uzupełnij metodę `Spi::readRegisterWord()` tak, by odczytywała dwa kolejne bajty. W tym celu po wysłaniu bajtu adresu, jak w funkcji `Spi::readRegister()` należy odczytać nie jeden, ale dwa bajty, a następnie zsumować je w zmiennej 16-bitowej, używając operatora przesunięcia bitowego o 8, czyli `<< 8`.
 
-```
-float eeprom_read_float(const float* address)
-```
+### Odczyt pomiaru w osi X
 
-\awesomebox[violet]{2pt}{\faBook}{violet}{Przykłady procedur odczytu i zapisu do EEPROM znajdziesz w opisie rejestru \texttt{EECR} (\textit{EEPROM Control Register}) w dokumentacji mikrokontrolera.}
+Uzupełnij metodę `Accelerometer::measure()` tak, by z użyciem `Spi::readRegisterWord()` odczytywała pomiar w osi X. Na ekranie powinien być widoczny pomiar w postaci szesnastkowej lub dziesiętnej.
 
-Zwróć uwagę, że należy odczytać liczbę bajtów równą rozmiarowi typu `float`. W tym celu możesz zdefiniować tablicę, do której w pętli przepiszesz kolejne bajty z EEPROM:
+### Zmniejsze częstotliwości pomiaru
 
-```
-uint8_t buffer[sizeof(float)];
-```
+W celu poprawienia czytelności odczytu na wyświetlaczu zmniejsz częstotliwość pracy czujnika, ustawiając na końcu funkcji `Accelerometer::initialize()` maksymalną wartość w rejestrze _Sample Rate Divider_.
 
-Bufor można przepisać do zmiennej typu `float` za pomocą funkcji `memcpy()` z biblioteki `string.h`:
+### Wizualizacja pomiaru za pomocą bargrafu
 
-```
-float value;
-memcpy(&value, buffer, sizeof(float));
-```
+W pętli głównej `mainLoop()` zwizualizuj wychylenie czujnika, rysując w pierwszej linii wyświetlacza myślniki odpowiednio po lewej lub prawej stronie znacznika \texttt{||} proporcjonalnie do wychylenia. Zakres pracy i rozdzielczość tego bargrafu dobierz wedle uznania.
 
-\awesomebox[teal]{2pt}{\faCode}{teal}{Argument funkcji jest typu \lstinline{const float*}, gdyż jest adresem w pamięci, a więc wskaźnikiem. Aby operować na nim jak na liczbie 16-bitowej, w szczególności móc wpisać do pary rejestrów EEAR, można rzutować go na typ \lstinline{uint16_t} za pomocą \lstinline{reinterpret_cast<uint16_t>(address)}.}
-
-### Implementacja odczytu wartości `float` z EEPROM
-
-Analogicznie zaimplementuj funkcję zapisującą zmienną typu `float` do EEPROM:
-
-```
-void eeprom_write_float(float* address, float value)
-```
-
-\awesomebox[purple]{2pt}{\faMicrochip}{purple}{Zwróć uwagę na zależności czasowe przy ustawianiu bitów \lstinline{EEMPE} i \lstinline{EEPE}. Zabezpiecz te operacje blokiem \lstinline{ATOMIC_BLOCK()}.}
+\begin{center}
+\LCD{2}{16}
+    |     --{|}{|}       |
+    |70 0xfec6=  -314|
+\captionof{figure}{Przykładowy stan wyświetlacza}
+\end{center}
