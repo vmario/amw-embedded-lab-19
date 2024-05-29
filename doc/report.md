@@ -1,5 +1,5 @@
 ---
-title: "Ćwiczenie 17: Przechowywanie danych użytkownika w pamięci EEPROM"
+title: "Ćwiczenie 19: Magistrala SPI na przykładzie akcelerometru"
 author: [Mariusz Chilmon <<mariusz.chilmon@ctm.gdynia.pl>>]
 lang: "pl"
 titlepage: no
@@ -37,19 +37,9 @@ _W trosce o Państwa wyniki proszę o czytelne wpisywanie nazwisk._
 
 ## Zadanie podstawowe
 
-Jaki jest rozmiar pamięci EEPROM dostępnej w mikrokontrolerze ATmega328P?
+Jaka jest rozdzielczość akcelerometru dla domyślnego zakresu $\pm 2g$ wyrażona w jednostkach przyspieszenia ziemskiego $g$?
 
 \vspace{1.5cm}
-
-Ile cyklów zapisu/czyszczenia jest gwarantowane dla pamięci Flash, a ile dla pamięci EEPROM w&nbsp;mikrokontrolerze ATmega328P?
-
-\vspace{1.5cm}
-
-Jaka jest gwarantowana retencja danych w pamięciach nieulotnych w temperaturze pokojowej, a jaka w temperaturze 85&deg;C?
-
-\vspace{1.5cm}
-
-\awesomebox[violet]{2pt}{\faBook}{violet}{Odpowiedzi na powyższe pytania znajdziesz na pierwszej stronie dokumentacji mikrokontrolera.}
 
 ## Zadanie rozszerzone
 
@@ -67,4 +57,6 @@ Ile zajmie zapis całej dostępnej pamięci EEPROM?
 
 _+1 pkt dla osoby, która jako pierwsza poda poprawną odpowiedź._
 
-Czym się różni operacja czyszczenia i zapisu komórki pamięci EEPROM? Po co sterownik EEPROM przewiduje rozdzielenie tych operacji?
+W jaki sposób akcelerometr MEMS dokonuje pomiaru przyspieszenia (jak jest zbudowany)?
+
+Akcelerometr w osi X nie odróżnia pozycji do góry nogami. Jak ją odróżnić?
