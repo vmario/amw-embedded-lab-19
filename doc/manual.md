@@ -56,13 +56,13 @@ Celem ćwiczenia jest zapoznanie się z:
 \captionof{figure}{Wyjściowy stan wyświetlacza}
 \end{center}
 
-Do płytki podłączony jest układ scalony MPU-6500 firmy InvenSense (obecnie wchodzącej w skład TDK), który jest czujnikiem typu MEMS (_Microelectromechanical System_), integrujący obwody elektroniczne z&nbsp;czujnikami mechanicznymi: trzyosiowym akcelerometrem i trzyosiowym żyroskopem. Umożliwia on pomiar przyspieszenia (akcelerometr) oraz prędkości obrotowej (żyroskop) w trzech ortogonalnych osiach.
+Do płytki podłączony jest układ scalony MPU-6500 firmy InvenSense (obecnie wchodzącej w skład TDK), który jest czujnikiem typu MEMS (_Microelectromechanical System_), integrującym obwody elektroniczne z&nbsp;czujnikami mechanicznymi: trzyosiowym akcelerometrem i trzyosiowym żyroskopem. Umożliwiają one pomiar przyspieszenia (akcelerometry) oraz prędkości obrotowej (żyroskopy) w&nbsp;trzech ortogonalnych osiach.
 
 ![Orientacja osi w czujniku MPU-6500](axes.png){width=200px}
 
 ![Budowa wewnętrzna podobnego czujnika — MPU-6050. Obok struktur elektronicznych widoczne są elementy mechaniczne, dokonujące pomiaru](dies.jpg){width=500px}
 
-\awesomebox[purple]{2pt}{\faMicrochip}{purple}{Akcelerometry znajdują bardzo szerokie zastosowanie: oceniają przechył telefonu komórkowego (stąd zjawisko ,,znowu mnie obróciło''), stabilizują obraz w aparatach fotograficznych, zliczają kroki w smartwatchu, uruchamiają poduszki powietrzne w~samochodzie czy mierzą przeciążenia mózgu graczy NHL po uderzeniu krążkiem hokejowym (do tego zastosowania firma STM musiała poszerzyć zakres pomiarowy swoich czujników).}
+\awesomebox[purple]{2pt}{\faMicrochip}{purple}{Akcelerometry znajdują bardzo szerokie zastosowanie: oceniają przechył telefonu komórkowego, stabilizują obraz w aparatach fotograficznych, zliczają kroki w~smartwatchu, uruchamiają poduszki powietrzne w~samochodzie czy mierzą przeciążenia mózgu graczy NHL po uderzeniu krążkiem hokejowym (do tego zastosowania firma STM musiała poszerzyć zakres pomiarowy swoich czujników).}
 
 Dzięki zasadzie równoważności, która mówi, że jednorodone statyczne pole grawitacyjne jest dla obserwatora nieodróżnialne od ruchu z przyspieszeniem (_vide_ pojęcie przyspieszenia ziemskiego), akcelerometr nadaje się również do pomiaru siły pola grawitacyjnego. Z kolei siła grawitacji w&nbsp;określonej osi jest zależna od nachylenia tej osi do np. powierzchni Ziemi, co łatwo możemy zaobserwować przechylając stół — przy pewnym kącie nachylenia składowa siły grawitacji dociskająca przedmioty do powierzchni stołu staje się zbyt mała do ich utrzymania[^1].
 
@@ -125,12 +125,14 @@ Uzupełnij metodę `Spi::readRegister()` o następujące kroki:
 
 W metodzie `Accelerometer::whoAmI()` wywołaj metodę `Spi::readRegister()` jako argument podając adres rejestru _Who Am I_. Na początku drugiej linii wyświetlacza powinien być widoczny identyfikator czujnika.
 
+\awesomebox[violet]{2pt}{\faBook}{violet}{Adresy rejestrów znajdziesz w mapie rejestrów czujnika.}
+
 # Zadanie rozszerzone
 
 ## Wymagania funkcjonalne
 
-1. Odczytywany jest pomiar w osi X.
-1. Wychylenie czujnika jest sygnalizowane przez linie w pierwszej linii wyświetlacza.
+1. Odczytywany jest pomiar przyspieszenia w osi X.
+1. Wychylenie czujnika jest wizualizowane w pierwszej linii wyświetlacza.
 
 ## Modyfikacja programu
 
@@ -140,11 +142,11 @@ Uzupełnij metodę `Spi::readRegisterWord()` tak, by odczytywała dwa kolejne ba
 
 ### Odczyt pomiaru w osi X
 
-Uzupełnij metodę `Accelerometer::measure()` tak, by z użyciem `Spi::readRegisterWord()` odczytywała pomiar w osi X. Na ekranie powinien być widoczny pomiar w postaci szesnastkowej lub dziesiętnej.
+Uzupełnij metodę `Accelerometer::measure()` tak, by z użyciem wcześniej przygotowanej funkcji `Spi::readRegisterWord()` odczytywała pomiar w osi X. Na ekranie powinien być widoczny pomiar w postaci szesnastkowej i dziesiętnej.
 
 ### Zmniejsze częstotliwości pomiaru
 
-W celu poprawienia czytelności odczytu na wyświetlaczu zmniejsz częstotliwość pracy czujnika, ustawiając na końcu funkcji `Accelerometer::initialize()` maksymalną wartość w rejestrze _Sample Rate Divider_.
+W celu poprawienia czytelności odczytu na wyświetlaczu zmniejsz częstotliwość pracy czujnika, ustawiając na końcu funkcji `Accelerometer::initialize()` maksymalną wartość w rejestrze _Sample Rate Divider_. Funkcja do zapisu rejestrów jest już gotowa.
 
 ### Wizualizacja pomiaru za pomocą bargrafu
 
